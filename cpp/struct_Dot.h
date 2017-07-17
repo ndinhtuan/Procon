@@ -69,6 +69,7 @@ void Dot::print_new_coord() {
 
 bool Dot::operator==(const Dot *ob2) {
 
+	if (ob2 == NULL) return false;
 	return (this->x == ob2->x) && (this->y == ob2->y);
 }
 
@@ -102,7 +103,21 @@ int Dot::fit_point_of_edge(Dot *dot_a, Dot *dot_b, Dot *dot_c, Dot *dot_d) {
 	if (!is_square_number(tmp)) return -2;
 	tmp = sqrt(tmp);
 	// 2 truong hop
+	// x_u == 0
+	if (x_u == 0) {
+		dot_b->new_x = dot_a->new_x;
+
+		if (!is_square_number(square_edge_AB)) return -4;
+		if (y_u < 0) dot_b->new_y = dot_a->new_y - sqrt(square_edge_AB);
+		if (y_u > 0) dot_b->new_y = dot_a->new_y + sqrt(square_edge_AB);
+
+		if (dot_b->new_x == dot_d->new_x && dot_b->new_y == dot_d->new_y) return 100;
+		return 3;
+	}
+
 	if (tmp * y_u % x_u != 0) return -3;
+	cout << "OKKKKKKKKKKKK" << endl;
+
 	int x_B_1 = dot_a->new_x - tmp;
 	int y_B_1 = dot_a->new_y - (tmp * y_u) / x_u;
 	int x_B_2 = dot_a->new_x + tmp;

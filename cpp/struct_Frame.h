@@ -14,6 +14,8 @@ using std::endl;
 
 using std::vector;
 
+#include <cassert>
+
 #define EPSILON 1e-8
 
 struct Frame : Puzzle {
@@ -34,11 +36,13 @@ struct Frame : Puzzle {
 	// Dua vao su thay doi cua 3 dinh ta tim dc su thay doi cua tat ca cac dinh con lai cua piece
 	// index, index -1, index + 1 la 3 dinh da co su tinh tien, thay doi taij (new_x, new_y)
 	void fix_coord_piece(Piece *piece, int index);
-	void get_new_frame();
+	void get_new_frame(Piece *piece, int index_piece, int index_frame);
 	void set_num_of_pieces(int _num_of_pieces) {
 
 		num_of_pieces = _num_of_pieces;
 	}
+	void delete_vertices();
+
 	static bool is_square_number(int number);
 	static bool is_comfort_edges(int edge_sqr_1, int edge_sqr_2);
 	static int UCLN(int a, int b);
@@ -47,10 +51,33 @@ struct Frame : Puzzle {
 	static bool is_comfort_3_dot(Dot *iP, Dot *iP_n, Dot *iP_p, Dot *iF, Dot *iF_n, Dot *iF_p);
 	// Ham fit 3 dot cua piece theo 3 dot cua frame
 	static int fit_3_dot(Dot *iP, Dot *iP_n, Dot *iP_p, Dot *iF, Dot *iF_n, Dot *iF_p);
+	//ham nay loai nhung Dot co toa do bang nhau trong mang
+	static void remove_same_coord(Dot **&dot, int &num_vertices);
+	static void delete_dot_array(Dot **dot, int num_vertices);
 
 	vector<Piece*> result_pieces;
 	int num_of_pieces;
 };
+
+void print_array_dot(Dot **dot, int num) {
+
+	cout << num << " dot : " << endl;
+
+	for (int i = 0; i < num; i++) {
+
+		if (dot[i] != NULL) cout << *(dot[i]) << endl;
+		else cout << "NULL" << endl;
+	}
+}
+
+void Frame::delete_vertices() {
+
+	for (int i = 0; i < this->num_of_vertices; i++) {
+		delete this->vertices[i];
+	}
+
+	delete[] this->vertices;
+}
 
 void Frame::fill(Piece **all_pieces){
 
@@ -73,15 +100,30 @@ void Frame::fill(Piece **all_pieces){
 			cout << "Not found comfortable piece." << endl;
 		}
 		else {
+			cout << "find_piece_at_index done ! : " << index_piece << endl;
 			// Found comfortable piece
+			cout << *comfort_piece << endl;
 			bool h = choose_position_for_piece(comfort_piece, index_piece, index);
+
 			if (!h) {
 				cout << "Not choose position." << endl;
 			}
 			else {
+				cout << "choose_position_for_piece done !" << endl;
+
 				int tmp = comfort_piece->fix_coord_piece(index_piece);
 				if (tmp < 0) cout << " Cannot fix coord piece " << endl;
+				cout << *comfort_piece;
 				comfort_piece->print_new_coord();
+				(this->result_pieces).push_back(comfort_piece);
+				this->get_new_frame(comfort_piece, index_piece, index);
+				cout << "Get new frame !" << endl;
+				cout << *this;
+				delete[] this->angles;
+				this->angles = new double[this->num_of_vertices];
+				this->calculateAngle();
+				index = 0;
+				continue;
 			}
 
 		}
@@ -93,6 +135,155 @@ void Frame::fill(Piece **all_pieces){
 		index++;
 		cin.ignore().get();
 	}
+}
+
+void Frame::get_new_frame(Piece *piece, int index_piece, int index_frame) {
+
+	int index_piece_next = (index_piece + 1) % piece->num_of_vertices;
+	int index_piece_prev = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
+
+	cout << "index_piece " << index_piece << endl;
+	int index_piece_next_flipped = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
+	int index_piece_prev_flipped = (index_piece + 1) % piece->num_of_vertices;
+
+	int index_frame_next = index_frame + 1;
+	int index_frame_prev = index_frame - 1;
+
+	int new_num_of_vertices = this->num_of_vertices + piece->num_of_vertices - 2;
+	Dot **new_vertieces = new Dot *[new_num_of_vertices];
+
+	int i = 0;
+
+	if (index_frame_prev >= 0) {
+
+		for (; i <= index_frame_prev; i++) {
+
+			Dot *tmp = new Dot(this->vertices[i]->x, this->vertices[i]->y);
+			new_vertieces[i] = tmp;
+		}
+	}
+
+	//cout << this->num_of_vertices << " prev : " << index_frame_prev << endl;
+
+	if (!piece->flipped) {
+
+		while (index_piece_prev != index_piece_next) {
+
+			Dot *tmp = new Dot(piece->vertices[index_piece_prev]->new_x, piece->vertices[index_piece_prev]->new_y);
+			new_vertieces[i] = tmp;
+			i++;
+			index_piece_prev = (index_piece_prev - 1 + piece->num_of_vertices) / piece->num_of_vertices;
+		}
+
+		Dot *tmp = new Dot(piece->vertices[index_piece_next]->new_x, piece->vertices[index_piece_next]->new_y);
+		new_vertieces[i] = tmp;
+		i++;
+	}
+	else {
+
+		while (index_piece_prev_flipped != index_piece_next_flipped) {
+
+			Dot *tmp = new Dot(piece->vertices[index_piece_prev_flipped]->new_x, piece->vertices[index_piece_prev_flipped]->new_y);
+			new_vertieces[i] = tmp;
+			i++;
+			index_piece_prev_flipped = (index_piece_prev_flipped + 1) % piece->num_of_vertices;
+		}
+
+		Dot *tmp = new Dot(piece->vertices[index_piece_next_flipped]->new_x, piece->vertices[index_piece_next_flipped]->new_y);
+		new_vertieces[i] = tmp;
+		i++;
+	}
+
+	if (index_frame_next < this->num_of_vertices) {
+
+		for (; index_frame_next < this->num_of_vertices; i++, index_frame_next++) {
+
+			Dot *tmp = new Dot(this->vertices[index_frame_next]->x, this->vertices[index_frame_next]->y);
+			new_vertieces[i] = tmp;
+		}
+	}
+
+	remove_same_coord(new_vertieces, new_num_of_vertices);
+	this->delete_vertices();
+	this->vertices = new_vertieces;
+	this->num_of_vertices = new_num_of_vertices;
+}
+
+void remove_null_from_array(Dot **dot, Dot **&new_dot, int old_vertices, int new_vertieces) {
+
+	int num = 0;
+
+	for (int i = 0; i < old_vertices; i++) {
+
+		if (dot[i] == NULL) num++;
+	}
+
+	assert(num != new_vertieces);
+	new_dot = new Dot*[new_vertieces];
+
+	int i = 0;
+
+	for (int j = 0; j < old_vertices; j++) {
+
+		if (dot[j] != NULL) {
+
+			new_dot[i] = new Dot(dot[j]->x, dot[j]->y);
+			i++;
+		}
+	}
+
+}
+
+void Frame::remove_same_coord(Dot **&dot, int &num_vertices) {
+
+	int i = 0;
+	int num_of_vertices_before_remove = num_vertices;
+
+	while (i < num_of_vertices_before_remove - 1) {
+
+		int i_prev = (i - 1 + num_of_vertices_before_remove) % num_of_vertices_before_remove;
+		int i_next = (i + 1) % num_of_vertices_before_remove;
+
+		if (dot[i] == NULL) {
+			i++;
+			continue;
+		}
+
+		if ((*dot[i]) == dot[i_prev]) {
+
+				delete dot[i_prev];
+				dot[i_prev] = NULL;
+				num_vertices--;
+		}
+
+		if ((*dot[i]) == dot[i_next]) {
+
+				delete dot[i_next];
+				dot[i_next] = NULL;
+				num_vertices--;
+		}
+
+		i++;
+	}
+
+	Dot **new_dot;
+	remove_null_from_array(dot, new_dot, num_of_vertices_before_remove, num_vertices);
+	delete_dot_array(dot, num_of_vertices_before_remove);
+	dot = new_dot;
+
+}
+
+void Frame::delete_dot_array(Dot **dot, int num_vertices) {
+
+	for (int i = 0; i < num_vertices; i++) {
+
+		if (dot[i] != NULL) {
+
+				delete dot[i];
+		}
+	}
+
+	delete[] dot;
 }
 
 int Frame::find_piece_at_index(Piece **all_pieces, Piece*& comfort_piece, int index_frame) {
@@ -167,9 +358,10 @@ int Frame::fit_3_dot(Dot *vertice_piece, Dot *vertice_piece_next, Dot *vertice_p
 
 	//vertice_piece->new_x = vertice_frame->x;
 	//vertice_piece->new_y = vertice_frame->y;
+
 	int a = Dot::fit_point_of_edge(vertice_piece, vertice_piece_next, vertice_frame, vertice_frame_next);
 	int b = Dot::fit_point_of_edge(vertice_piece, vertice_piece_prev, vertice_frame, vertice_frame_prev);
-
+	
 	cout << "Value of fit : " << a << " and " << b << endl;
 	if (a > 0 && b > 0) {
 		return a + b;
@@ -226,6 +418,8 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 	}
 
 	if (val2 > 100 || val1 < 0) {
+
+		piece->flipped = true; // piece bi flip
 
 		vertice_piece_next->new_x = dot_n2->new_x;
 		vertice_piece_next->new_y = dot_n2->new_y;

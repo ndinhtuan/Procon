@@ -10,6 +10,7 @@ struct Piece : public Puzzle {
 	/* Class constructor */
 
 	Piece(const int num_of_pieces) : Puzzle(num_of_pieces) {
+		flipped = false;
 	}
 
 	// Dua vao su thay doi (new_x, new_y) cua 3 dinh ta tim dc su thay doi cua tat ca cac dinh con lai cua piece
@@ -22,6 +23,8 @@ struct Piece : public Puzzle {
 	// tra ve so duong neu nghiem nguyen, so am neu khong co nghiem nguyen. Tra ve 0 he vo ly
 	static int find_integer_solution_of_equations(int a, int b, int c, int a1, int b1, int c1,
 																									int &x, int &y);
+
+	bool flipped;
 };
 
 void Piece::print_new_coord() {

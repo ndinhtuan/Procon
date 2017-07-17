@@ -27,7 +27,7 @@ struct Puzzle {
 	int num_of_vertices;
 
 	// List of vertices
-	Dot** vertices;
+	Dot** vertices;	
 
 	// Angles
 
