@@ -16,7 +16,7 @@ using std::vector;
 
 #include <cassert>
 
-#define EPSILON 1e-8
+#define EPSILON 1e-2
 
 struct Frame : Puzzle {
 
@@ -54,10 +54,24 @@ struct Frame : Puzzle {
 	//ham nay loai nhung Dot co toa do bang nhau trong mang
 	static void remove_same_coord(Dot **&dot, int &num_vertices);
 	static void delete_dot_array(Dot **dot, int num_vertices);
+	static void print_all_angle_of_pieces(Piece **all_pieces, int num);
 
 	vector<Piece*> result_pieces;
 	int num_of_pieces;
 };
+
+void Frame::print_all_angle_of_pieces(Piece **all_pieces, int num) {
+
+	for (int i = 0; i < num; i++) {
+
+		cout << "Piece " << i << " : " << endl;
+		int num_vertices = all_pieces[i]->num_of_vertices;
+		for (int j = 0; j < num_vertices; j++) {
+			cout << all_pieces[i]->angles[j] << endl;
+		}
+
+	}
+}
 
 void print_array_dot(Dot **dot, int num) {
 
@@ -81,13 +95,14 @@ void Frame::delete_vertices() {
 
 void Frame::fill(Piece **all_pieces){
 
+	//print_all_angle_of_pieces(all_pieces, num_of_pieces);
 	int index = 0;
 
 	while (index < num_of_vertices) {
-		cout << "Vertice " << index << " with angle " << angles[index] * 180 / M_PI << " : " << endl;
+		cout << "Vertice " << index << " with angle " << angles[index] << " : " << endl;
 		Piece *comfort_piece = NULL;
 
-		if (abs(angles[index] - M_PI/2) <= EPSILON) {
+		if (abs(angles[index]  - 90) <= EPSILON) {
 			index ++;
 			continue;
 		}
@@ -101,7 +116,7 @@ void Frame::fill(Piece **all_pieces){
 			cout << "Not found comfortable piece." << endl;
 		}
 		else {
-			cout << "find_piece_at_index done ! : " << index_piece << endl;
+			cout << "find_piece_at_index done !" << endl;
 			// Found comfortable piece
 			bool h = choose_position_for_piece(comfort_piece, index_piece, index);
 
@@ -113,6 +128,8 @@ void Frame::fill(Piece **all_pieces){
 
 				int tmp = comfort_piece->fix_coord_piece(index_piece);
 				if (tmp < 0) cout << " Cannot fix coord piece " << endl;
+				else cout << "Fix coord piece .. Done!" << endl;
+
 				cout << *comfort_piece;
 				comfort_piece->print_new_coord();
 				(this->result_pieces).push_back(comfort_piece);
@@ -294,7 +311,7 @@ int Frame::find_piece_at_index(Piece **all_pieces, Piece*& comfort_piece, int in
 	for (int i = 0; i < num_of_pieces; i++) {
 
 		if (all_pieces[i]->filled) continue;
-		
+
 		for (int j = 0; j < all_pieces[i]->num_of_vertices; j++) {
 
 			if (abs(angles[index_frame] - all_pieces[i]->angles[j]) <= EPSILON) {
@@ -367,6 +384,7 @@ int Frame::fit_3_dot(Dot *vertice_piece, Dot *vertice_piece_next, Dot *vertice_p
 	int a = Dot::fit_point_of_edge(vertice_piece, vertice_piece_next, vertice_frame, vertice_frame_next);
 	int b = Dot::fit_point_of_edge(vertice_piece, vertice_piece_prev, vertice_frame, vertice_frame_prev);
 
+
 	//cout << "Value of fit : " << a << " and " << b << endl;
 	if (a > 0 && b > 0) {
 		return a + b;
@@ -390,12 +408,13 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 	Dot *vertice_frame_next = this->vertices[index_frame_next];
 	Dot *vertice_frame_prev = this->vertices[index_frame_prev];
 
-	int val1, val2;
+	int val1 = -1, val2 = -1;
 	Dot *dot_n1 = new Dot(*vertice_piece_next);
 	Dot *dot_p1 = new Dot(*vertice_piece_prev);
   Dot *dot_n2 = new Dot(*vertice_piece_next);
 	Dot *dot_p2 = new Dot(*vertice_piece_prev);
 
+	//cout << "choose_position_for_piece" << endl;
 	if (is_comfort_3_dot(vertice_piece, vertice_piece_next, vertice_piece_prev,
 												vertice_frame, vertice_frame_next, vertice_frame_prev)) {
 		vertice_piece->new_x = vertice_frame->x;
@@ -408,20 +427,23 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		vertice_piece->new_x = vertice_frame->x;
 		vertice_piece->new_y = vertice_frame->y;
 		val2 = fit_3_dot(vertice_piece, dot_p2, dot_n2, vertice_frame, vertice_frame_next, vertice_frame_prev);
+		//cout << "print n1 " << val1 << endl;
+		//dot_n2->print_new_coord();
   }
 
 
-	if (val1 > 100 || val2 < 0) {
+	if (val1 > 100 || (val2 < 0 && val1 > 0)) {
 
 		vertice_piece_next->new_x = dot_n1->new_x;
 		vertice_piece_next->new_y = dot_n1->new_y;
 
 		vertice_piece_prev->new_x = dot_p1->new_x;
 		vertice_piece_prev->new_y = dot_p1->new_y;
+
 		return true;
 	}
 
-	if (val2 > 100 || val1 < 0) {
+	if (val2 > 100 || (val1 < 0 && val2 > 0)) {
 
 		piece->flipped = true; // piece bi flip
 
@@ -432,6 +454,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		vertice_piece_prev->new_y = dot_p2->new_y;
 		return true;
 	}
+
 
 	return false;
 }

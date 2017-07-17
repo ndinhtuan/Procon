@@ -53,7 +53,6 @@ int Piece::fix_coord_piece(int index) {
 	while (i != index_next) {
 
 		int tmp = find_new_coord_dot(this->vertices[i], dot_A, dot_B, dot_C);
-
 		if (tmp < 0) {
 
 			cout << "Cannot find new coord of dot." << endl;
@@ -103,11 +102,12 @@ int Piece::find_new_coord_dot(Dot *dot_D, Dot *dot_A, Dot *dot_B, Dot *dot_C) {
 	int b1 = 2 * (dot_C->new_y - dot_A->new_y);
 	int c1 = square_AD - square_CD - ((dot_A->new_y) * (dot_A->new_y) - (dot_C->new_y) * (dot_C->new_y)
 																		+ (dot_A->new_x) * (dot_A->new_x) - (dot_C->new_x) * (dot_C->new_x));
-
+	//cout << a << " " << b << " " << c << " / " << a1 << " " << b1 << " " << c1 << endl;
 	int k = find_integer_solution_of_equations(a, b, c, a1, b1, c1, dot_D->new_x, dot_D->new_y);
-	//cout << "k = " << k << endl;
+
 	if (k <= 0) {
 
+		cout << a << " " << b << " " << c << " / " << a1 << " " << b1 << " " << c1 << endl;
 		cout << "Not found integer coord dot !" << endl;
 		return -1;
 	}

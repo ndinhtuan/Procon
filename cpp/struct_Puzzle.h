@@ -27,7 +27,7 @@ struct Puzzle {
 	int num_of_vertices;
 
 	// List of vertices
-	Dot** vertices;	
+	Dot** vertices;
 
 	// Angles
 
@@ -84,7 +84,7 @@ struct Puzzle {
 			);
 			//cout << a << " " << b << " " << c << endl;
 			cosCi = (pow(a, 2) + pow(b, 2) - pow(c, 2)) / 2.0 / (double) a / (double) b;
-			angles[i] = acos(cosCi);
+			angles[i] = acos(cosCi) * 180 / M_PI;
 			//cout << cosCi << endl;
 			//cout << setprecision(10) << M_PI << endl;
 			//printf("%.4f\n", angles[i]*180 / M_PI);

@@ -105,6 +105,7 @@ int Dot::fit_point_of_edge(Dot *dot_a, Dot *dot_b, Dot *dot_c, Dot *dot_d) {
 	// 2 truong hop
 	// x_u == 0
 	if (x_u == 0) {
+		//cout << "x_u == 0" << endl;
 		dot_b->new_x = dot_a->new_x;
 
 		if (!is_square_number(square_edge_AB)) return -4;
