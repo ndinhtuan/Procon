@@ -11,6 +11,7 @@ struct Piece : public Puzzle {
 
 	Piece(const int num_of_pieces) : Puzzle(num_of_pieces) {
 		flipped = false;
+		filled = false;
 	}
 
 	// Dua vao su thay doi (new_x, new_y) cua 3 dinh ta tim dc su thay doi cua tat ca cac dinh con lai cua piece
@@ -25,6 +26,7 @@ struct Piece : public Puzzle {
 																									int &x, int &y);
 
 	bool flipped;
+	bool filled;
 };
 
 void Piece::print_new_coord() {
@@ -102,11 +104,8 @@ int Piece::find_new_coord_dot(Dot *dot_D, Dot *dot_A, Dot *dot_B, Dot *dot_C) {
 	int c1 = square_AD - square_CD - ((dot_A->new_y) * (dot_A->new_y) - (dot_C->new_y) * (dot_C->new_y)
 																		+ (dot_A->new_x) * (dot_A->new_x) - (dot_C->new_x) * (dot_C->new_x));
 
-	cout << "he so : " <<
-				a << " " << b << " " << c << " and "
-				<< a1 << " " << b1 << " " << c1 << endl;
 	int k = find_integer_solution_of_equations(a, b, c, a1, b1, c1, dot_D->new_x, dot_D->new_y);
-	cout << "k = " << k << endl;
+	//cout << "k = " << k << endl;
 	if (k <= 0) {
 
 		cout << "Not found integer coord dot !" << endl;

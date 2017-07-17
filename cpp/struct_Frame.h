@@ -73,7 +73,7 @@ void print_array_dot(Dot **dot, int num) {
 void Frame::delete_vertices() {
 
 	for (int i = 0; i < this->num_of_vertices; i++) {
-		delete this->vertices[i];
+		if (this->vertices[i] != NULL) delete this->vertices[i];
 	}
 
 	delete[] this->vertices;
@@ -93,6 +93,7 @@ void Frame::fill(Piece **all_pieces){
 		}
 
 		// Find comfortable piece for index th of frame
+
 		int index_piece = find_piece_at_index(all_pieces, comfort_piece, index);
 
 		if (index_piece == -1) {
@@ -102,7 +103,6 @@ void Frame::fill(Piece **all_pieces){
 		else {
 			cout << "find_piece_at_index done ! : " << index_piece << endl;
 			// Found comfortable piece
-			cout << *comfort_piece << endl;
 			bool h = choose_position_for_piece(comfort_piece, index_piece, index);
 
 			if (!h) {
@@ -117,12 +117,13 @@ void Frame::fill(Piece **all_pieces){
 				comfort_piece->print_new_coord();
 				(this->result_pieces).push_back(comfort_piece);
 				this->get_new_frame(comfort_piece, index_piece, index);
-				cout << "Get new frame !" << endl;
-				cout << *this;
 				delete[] this->angles;
 				this->angles = new double[this->num_of_vertices];
+				comfort_piece->filled = true;
 				this->calculateAngle();
 				index = 0;
+				cin.ignore().get();
+
 				continue;
 			}
 
@@ -142,7 +143,6 @@ void Frame::get_new_frame(Piece *piece, int index_piece, int index_frame) {
 	int index_piece_next = (index_piece + 1) % piece->num_of_vertices;
 	int index_piece_prev = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
 
-	cout << "index_piece " << index_piece << endl;
 	int index_piece_next_flipped = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
 	int index_piece_prev_flipped = (index_piece + 1) % piece->num_of_vertices;
 
@@ -170,9 +170,11 @@ void Frame::get_new_frame(Piece *piece, int index_piece, int index_frame) {
 		while (index_piece_prev != index_piece_next) {
 
 			Dot *tmp = new Dot(piece->vertices[index_piece_prev]->new_x, piece->vertices[index_piece_prev]->new_y);
+			//cout << "MEMORY OK" << endl;
+
 			new_vertieces[i] = tmp;
 			i++;
-			index_piece_prev = (index_piece_prev - 1 + piece->num_of_vertices) / piece->num_of_vertices;
+			index_piece_prev = (index_piece_prev - 1 + piece->num_of_vertices) % piece->num_of_vertices;
 		}
 
 		Dot *tmp = new Dot(piece->vertices[index_piece_next]->new_x, piece->vertices[index_piece_next]->new_y);
@@ -275,11 +277,12 @@ void Frame::remove_same_coord(Dot **&dot, int &num_vertices) {
 
 void Frame::delete_dot_array(Dot **dot, int num_vertices) {
 
+	assert(dot != NULL);
 	for (int i = 0; i < num_vertices; i++) {
 
 		if (dot[i] != NULL) {
 
-				delete dot[i];
+			delete dot[i];
 		}
 	}
 
@@ -290,6 +293,8 @@ int Frame::find_piece_at_index(Piece **all_pieces, Piece*& comfort_piece, int in
 
 	for (int i = 0; i < num_of_pieces; i++) {
 
+		if (all_pieces[i]->filled) continue;
+		
 		for (int j = 0; j < all_pieces[i]->num_of_vertices; j++) {
 
 			if (abs(angles[index_frame] - all_pieces[i]->angles[j]) <= EPSILON) {
@@ -361,8 +366,8 @@ int Frame::fit_3_dot(Dot *vertice_piece, Dot *vertice_piece_next, Dot *vertice_p
 
 	int a = Dot::fit_point_of_edge(vertice_piece, vertice_piece_next, vertice_frame, vertice_frame_next);
 	int b = Dot::fit_point_of_edge(vertice_piece, vertice_piece_prev, vertice_frame, vertice_frame_prev);
-	
-	cout << "Value of fit : " << a << " and " << b << endl;
+
+	//cout << "Value of fit : " << a << " and " << b << endl;
 	if (a > 0 && b > 0) {
 		return a + b;
 	}
@@ -405,8 +410,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		val2 = fit_3_dot(vertice_piece, dot_p2, dot_n2, vertice_frame, vertice_frame_next, vertice_frame_prev);
   }
 
-	cout << "val1 : " << val1 << endl;
-	cout << "val2 : " << val2 << endl;
+
 	if (val1 > 100 || val2 < 0) {
 
 		vertice_piece_next->new_x = dot_n1->new_x;

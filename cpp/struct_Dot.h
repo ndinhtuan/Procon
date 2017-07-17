@@ -116,7 +116,6 @@ int Dot::fit_point_of_edge(Dot *dot_a, Dot *dot_b, Dot *dot_c, Dot *dot_d) {
 	}
 
 	if (tmp * y_u % x_u != 0) return -3;
-	cout << "OKKKKKKKKKKKK" << endl;
 
 	int x_B_1 = dot_a->new_x - tmp;
 	int y_B_1 = dot_a->new_y - (tmp * y_u) / x_u;
