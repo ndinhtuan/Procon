@@ -84,10 +84,60 @@ struct Frame : Puzzle {
 	static void remove_same_coord(Dot **&dot, int &num_vertices);
 	static void delete_dot_array(Dot **dot, int num_vertices);
 	static void print_all_angle_of_pieces(Piece **all_pieces, int num);
+	static void draw_piece(Piece *piece, int width = 30, int height = 30, int step = 30);
+	void draw_frame(int width = 30, int height = 30, int step = 30);
 
 	vector<Piece*> result_pieces;
 	int num_of_pieces;
 };
+
+void Frame::draw_frame(int width, int height, int step) {
+
+	Mat img(height * step, width * step, CV_8UC3, Scalar(255, 255, 255));
+
+	for (int x = 0; x < width; x++) {
+
+		for (int y = 0; y < height; y++) {
+
+			circle(img, Point(x * step, y * step), 2, Scalar(0, 0, 0), -1);
+		}
+	}
+
+	// draw frame
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		Point pt1 = Point(vertices[i]->x * step, vertices[i]->y * step);
+		Point pt2 = Point(vertices[(i + 1) % num_of_vertices]->x * step, vertices[(i + 1) % num_of_vertices]->y * step);
+		line(img, pt1, pt2, Scalar(255, 0, 0));
+	}
+
+	imshow("Piece", img);
+	waitKey(0);
+}
+
+void Frame::draw_piece(Piece *piece, int width, int height, int step) {
+
+	Mat img(height * step, width * step, CV_8UC3, Scalar(255, 255, 255));
+
+	for (int x = 0; x < width; x++) {
+
+		for (int y = 0; y < height; y++) {
+
+			circle(img, Point(x * step, y * step), 2, Scalar(0, 0, 0), -1);
+		}
+	}
+
+	// draw frame
+	for (int i = 0; i < piece->num_of_vertices; i++) {
+
+		Point pt1 = Point(piece->vertices[i]->x * step, piece->vertices[i]->y * step);
+		Point pt2 = Point(piece->vertices[(i + 1) % piece->num_of_vertices]->x * step, piece->vertices[(i + 1) % piece->num_of_vertices]->y * step);
+		line(img, pt1, pt2, Scalar(255, 0, 0));
+	}
+
+	imshow("Piece", img);
+	waitKey(0);
+}
 
 int Frame::get_num_same_angles_in_piece(Piece *piece, int index_frame, int &first_comfort_vertice) {
 
@@ -125,10 +175,10 @@ void Frame::fill_half_auto(Piece **all_pieces) {
 
 	while (index < this->num_of_vertices) {
 
-		if (abs(angles[index] - 90) <= EPSILON) {
-			index ++;
-			continue;
-		}
+		// if (abs(angles[index] - 90) <= EPSILON) {
+		// 	index ++;
+		// 	continue;
+		// }
 		vector<Piece*> array_comfort_pieces;
 
 		for (int i = 0; i < this->num_of_pieces; i++) {
@@ -167,6 +217,9 @@ void Frame::fill_half_auto(Piece **all_pieces) {
 void Frame::get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &ill, int width, int height, int step) {
 
 	bool choosed_position = choose_position_for_piece(piece, index_piece, index_frame);
+	//cout << index_piece << " of " <<*piece;
+	//draw_frame();
+	//draw_piece(piece);
 	assert(choosed_position);
 
 	int fixed_coord_piece = piece->fix_coord_piece(index_piece);
@@ -256,10 +309,11 @@ void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_
 
 	cout << "You should choose piece i, vertice j (i, j) : ";
 	waitKey(0);
+	destroyAllWindows();
 	cin >> number_piece >> number_index;
 
-	cout << *all_comfort_pieces[number_piece] << endl;
-	cout << "and " << *all_comfort_pieces[number_piece]->vertices[array_indexes[number_piece][number_index]] << endl;
+	//cout << *all_comfort_pieces[number_piece] << endl;
+	//cout << "and " << *all_comfort_pieces[number_piece]->vertices[array_indexes[number_piece][number_index]] << endl;
 	fill_auto_at_one_vertice(all_comfort_pieces[number_piece], number_index, index_frame);
 }
 //----------------END--------------------------
@@ -764,6 +818,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		vertice_piece->new_x = vertice_frame->x;
 		vertice_piece->new_y = vertice_frame->y;
 		val1 = fit_3_dot(vertice_piece, dot_n1, dot_p1, vertice_frame, vertice_frame_next, vertice_frame_prev);
+
   }
 
 	if (is_comfort_3_dot(vertice_piece, vertice_piece_prev, vertice_piece_next,
@@ -775,8 +830,9 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		//dot_n2->print_new_coord();
   }
 
+	int pri = 1;
 
-	if (val1 > 100 || (val2 < 0 && val1 > 0)) {
+	if (val1 > 100 || (val2 < 0 && val1 > 0) || ((val2 > 0 && val1 > 0)&& pri == 1) ) {
 
 		vertice_piece_next->new_x = dot_n1->new_x;
 		vertice_piece_next->new_y = dot_n1->new_y;
@@ -787,7 +843,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		return true;
 	}
 
-	if (val2 > 100 || (val1 < 0 && val2 > 0)) {
+	if (val2 > 100 || (val1 < 0 && val2 > 0) && pri == 2) {
 
 		piece->flipped = true; // piece bi flip
 
