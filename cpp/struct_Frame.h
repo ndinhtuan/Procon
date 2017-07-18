@@ -15,6 +15,12 @@ using std::endl;
 using std::vector;
 
 #include <cassert>
+#include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/opencv.hpp"
+
+using namespace cv;
 
 #define EPSILON 1e-2
 
@@ -26,7 +32,29 @@ struct Frame : Puzzle {
 
 	}
 
+	Frame() {
+
+		num_of_pieces = 0;
+	}
+
+	Frame(const Frame &frame);
+	Frame& operator=(const Frame &ob1);
+
 	void fill(Piece **all_pieces);
+	void fill_half_auto(Piece **all_pieces);
+	int get_num_same_angles_in_piece(Piece *piece, int index_frame, int &first_comfort_vertice);
+	bool is_comfort_piece(Piece *piece, int index_frame);
+
+	// --------------- Fill_custom_at_one_vertice-----------------
+	void fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame);
+	void get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &ill, int width = 30, int height = 30, int step = 30);
+	//----------------END--------------------------
+
+	// --------------- Fill_auto_at_one_vertice-----------------
+	void fill_auto_at_one_vertice(Piece *&comfort_piece, int index_piece, int index_frame);
+	bool is_comfort_piece_at_vertice(Piece *piece, int index_piece, int index_frame);
+	//-----------------        END--------------------------------------
+
 	// return comfortable index of piece for index_frame of Frame
 	int find_piece_at_index(Piece **all_pieces, Piece*& comfort_piece, int index_frame);
 	// chon prev_index, index_piece, next_piece fix dung vao prev_index, index_frame, next_index_frame theo is_comfort_edges()
@@ -42,6 +70,7 @@ struct Frame : Puzzle {
 		num_of_pieces = _num_of_pieces;
 	}
 	void delete_vertices();
+	void draw_result(int width = 30, int height = 30, int step = 30);
 
 	static bool is_square_number(int number);
 	static bool is_comfort_edges(int edge_sqr_1, int edge_sqr_2);
@@ -59,6 +88,322 @@ struct Frame : Puzzle {
 	vector<Piece*> result_pieces;
 	int num_of_pieces;
 };
+
+int Frame::get_num_same_angles_in_piece(Piece *piece, int index_frame, int &first_comfort_vertice) {
+
+		int num = 0;
+
+		for (int i = 0; i < piece->num_of_vertices; i++) {
+
+			if (is_comfort_piece_at_vertice(piece, i, index_frame)) {
+
+				if (num == 0) first_comfort_vertice = i;
+				num++;
+			}
+		}
+
+		return num;
+}
+
+bool Frame::is_comfort_piece(Piece *piece, int index_frame) {
+
+	cout << "angle frame : " << this->angles[index_frame] << endl;
+	for (int i = 0; i < piece->num_of_vertices; i++) {
+
+		if (is_comfort_piece_at_vertice(piece, i, index_frame)) {
+			piece->print_angles();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void Frame::fill_half_auto(Piece **all_pieces) {
+
+	int index = 0;
+
+	while (index < this->num_of_vertices) {
+
+		if (abs(angles[index] - 90) <= EPSILON) {
+			index ++;
+			continue;
+		}
+		vector<Piece*> array_comfort_pieces;
+
+		for (int i = 0; i < this->num_of_pieces; i++) {
+
+			if (!all_pieces[i]->filled && is_comfort_piece(all_pieces[i], index)) {
+					array_comfort_pieces.push_back(all_pieces[i]);
+			}
+		}
+
+		int index_piece;
+		if (array_comfort_pieces.size() == 1 && get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) == 1) {
+
+			cout << "fill auto at vertice " << index << " - " << this->angles[index] << endl;
+			fill_auto_at_one_vertice(array_comfort_pieces[0], index_piece, index);
+			index = 0;
+			continue;
+		}
+		if (array_comfort_pieces.size() > 1 ||
+				(array_comfort_pieces.size() == 1 && get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) > 1)) {
+
+			cout << "fill custom at vertice " << index << " - " << this->angles[index] << endl;
+			fill_custom_at_vertice(array_comfort_pieces, index);
+			index = 0;
+			continue;
+		}
+
+		cout << "Not fill at vertice " << index << " - " << this->angles[index] << endl;
+		index++;
+	}
+
+	this->draw_result();
+}
+
+// --------------- Fill_custom_at_one_vertice-----------------
+
+void Frame::get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &ill, int width, int height, int step) {
+
+	bool choosed_position = choose_position_for_piece(piece, index_piece, index_frame);
+	assert(choosed_position);
+
+	int fixed_coord_piece = piece->fix_coord_piece(index_piece);
+	assert(fixed_coord_piece >= 0);
+
+	(this->result_pieces).push_back(piece);
+
+	ill = Mat(height * step, width * step, CV_8UC3, Scalar(255, 255, 255));
+
+	for (int x = 0; x < width; x++) {
+
+		for (int y = 0; y < height; y++) {
+
+			circle(ill, Point(x * step, y * step), 2, Scalar(0, 0, 0), -1);
+		}
+	}
+
+	// draw frame
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		Point pt1 = Point(vertices[i]->x * step, vertices[i]->y * step);
+		Point pt2 = Point(vertices[(i + 1) % num_of_vertices]->x * step, vertices[(i + 1) % num_of_vertices]->y * step);
+		line(ill, pt1, pt2, Scalar(255, 0, 0));
+	}
+	// draw filled piece
+
+	for (int i = 0; i < result_pieces.size(); i++) {
+
+		for (int j = 0; j < result_pieces[i]->num_of_vertices; j++) {
+
+			Point pt1 = Point(result_pieces[i]->vertices[j]->new_x * step, result_pieces[i]->vertices[j]->new_y * step);
+			Point pt2 = Point(result_pieces[i]->vertices[(j + 1) % result_pieces[i]->num_of_vertices]->new_x * step, result_pieces[i]->vertices[(j + 1) % result_pieces[i]->num_of_vertices]->new_y * step);
+			line(ill, pt1, pt2, Scalar(0, 255, 0));
+		}
+	}
+
+	(this->result_pieces).pop_back();
+}
+
+void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame) {
+
+	assert(all_comfort_pieces.size() >= 2);
+	vector< vector<int> > array_indexes;
+
+	for (int i = 0; i < all_comfort_pieces.size(); i++) {
+
+			vector<int> indexes;
+
+			for (int j = 0; j < all_comfort_pieces[i]->num_of_vertices; j++) {
+
+				if (is_comfort_piece_at_vertice(all_comfort_pieces[i], j, index_frame)) indexes.push_back(j);
+			}
+
+			array_indexes.push_back(indexes);
+	}
+
+	int number_piece, number_index;
+
+	vector< vector<Mat> > array_illustrates;
+
+	for (int i = 0; i < array_indexes.size(); i++) {
+
+		vector<Mat> illustrates;
+		Piece *tmp_piece = new Piece(*all_comfort_pieces[i]);
+
+		for (int j = 0; j < array_indexes[i].size(); j++) {
+
+			Mat ill;
+			get_illustrate(tmp_piece, array_indexes[i][j], index_frame, ill);
+			illustrates.push_back(ill);
+		}
+
+		array_illustrates.push_back(illustrates);
+	}
+
+	for (int i = 0; i < array_illustrates.size(); i++) {
+
+			for (int j = 0; j < array_illustrates[i].size(); j++) {
+
+				string st = "illustrate for piece ";
+				st += char(i + '0');
+				st += " at vertice ";
+				st += char(array_indexes[i][j] + '0');
+				imshow(st, array_illustrates[i][j]);
+			}
+	}
+
+	cout << "You should choose piece i, vertice j (i, j) : ";
+	waitKey(0);
+	cin >> number_piece >> number_index;
+
+	cout << *all_comfort_pieces[number_piece] << endl;
+	cout << "and " << *all_comfort_pieces[number_piece]->vertices[array_indexes[number_piece][number_index]] << endl;
+	fill_auto_at_one_vertice(all_comfort_pieces[number_piece], number_index, index_frame);
+}
+//----------------END--------------------------
+
+Frame::Frame(const Frame &frame) {
+
+	num_of_vertices = frame.num_of_vertices;
+	vertices = new Dot*[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		vertices[i] = new Dot(frame.vertices[i]->x, frame.vertices[i]->y);
+	}
+
+	angles = new double[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		angles[i] = frame.angles[i];
+	}
+
+	for (int i = 0; i < frame.result_pieces.size(); i++) {
+
+		result_pieces.push_back(frame.result_pieces[i]);
+	}
+
+	num_of_pieces = frame.num_of_pieces;
+}
+
+Frame& Frame::operator=(const Frame &frame) {
+
+	num_of_vertices = frame.num_of_vertices;
+	delete_vertices();
+	vertices = new Dot*[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		vertices[i] = new Dot(frame.vertices[i]->x, frame.vertices[i]->y);
+	}
+
+	delete[] angles;
+	angles = new double[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		angles[i] = frame.angles[i];
+	}
+
+	for (int i = 0; i < result_pieces.size(); i++) {
+
+		result_pieces.pop_back();
+	}
+
+	for (int i = 0; i < frame.result_pieces.size(); i++) {
+
+		result_pieces.push_back(frame.result_pieces[i]);
+	}
+
+	num_of_pieces = frame.num_of_pieces;
+
+	return *this;
+}
+
+// --------------- Fill_auto_at_one_vertice-----------------
+void Frame::fill_auto_at_one_vertice(Piece *&comfort_piece, int index_piece, int index_frame) {
+
+	assert(is_comfort_piece_at_vertice(comfort_piece, index_piece, index_frame));
+
+	bool choosed_position = choose_position_for_piece(comfort_piece, index_piece, index_frame);
+	assert(choosed_position);
+
+	int fixed_coord_piece = comfort_piece->fix_coord_piece(index_piece);
+	assert(fixed_coord_piece >= 0);
+
+	(this->result_pieces).push_back(comfort_piece);
+
+	this->get_new_frame(comfort_piece, index_piece, index_frame);
+
+	delete[] this->angles;
+	this->angles = new double[this->num_of_vertices];
+	this->calculateAngle();
+
+	comfort_piece->filled = true;
+}
+
+bool Frame::is_comfort_piece_at_vertice(Piece *piece, int index_piece, int index_frame) {
+
+	if (abs(piece->angles[index_piece] - this->angles[index_frame]) >= EPSILON) return false;
+
+	int index_piece_next = (index_piece + 1) % piece->num_of_vertices;
+	int index_piece_prev = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
+
+	int index_frame_next = (index_frame + 1) % this->num_of_vertices;
+	int index_frame_prev = (index_frame -1 + this->num_of_vertices) % this->num_of_vertices;
+
+	Dot *dot_piece = piece->vertices[index_piece];
+	Dot *dot_piece_next = piece->vertices[index_piece_next];
+	Dot *dot_piece_prev = piece->vertices[index_piece_prev];
+
+	Dot *dot_frame = this->vertices[index_frame];
+	Dot *dot_frame_next = this->vertices[index_frame_next];
+	Dot *dot_frame_prev = this->vertices[index_frame_prev];
+
+	return (is_comfort_3_dot(dot_piece, dot_piece_next, dot_piece_prev, dot_frame, dot_frame_next, dot_frame_prev)
+					|| is_comfort_3_dot(dot_piece, dot_piece_prev, dot_piece_next, dot_frame, dot_frame_next, dot_frame_prev));
+}
+//-----------------END--------------------------------------
+
+
+void Frame::draw_result(int width, int height, int step) {
+
+	Mat img(height * step, width * step, CV_8UC3, Scalar(255, 255, 255));
+
+	for (int x = 0; x < width; x++) {
+
+		for (int y = 0; y < height; y++) {
+
+			circle(img, Point(x * step, y * step), 2, Scalar(0, 0, 0), -1);
+		}
+	}
+
+	// draw frame
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		Point pt1 = Point(vertices[i]->x * step, vertices[i]->y * step);
+		Point pt2 = Point(vertices[(i + 1) % num_of_vertices]->x * step, vertices[(i + 1) % num_of_vertices]->y * step);
+		line(img, pt1, pt2, Scalar(255, 0, 0));
+	}
+	// draw filled piece
+
+	for (int i = 0; i < result_pieces.size(); i++) {
+
+		for (int j = 0; j < result_pieces[i]->num_of_vertices; j++) {
+
+			Point pt1 = Point(result_pieces[i]->vertices[j]->new_x * step, result_pieces[i]->vertices[j]->new_y * step);
+			Point pt2 = Point(result_pieces[i]->vertices[(j + 1) % result_pieces[i]->num_of_vertices]->new_x * step, result_pieces[i]->vertices[(j + 1) % result_pieces[i]->num_of_vertices]->new_y * step);
+			line(img, pt1, pt2, Scalar(0, 255, 0));
+		}
+	}
+
+	namedWindow( "tuan", WINDOW_AUTOSIZE );
+	imshow("tuan", img);
+	waitKey(0);
+}
 
 void Frame::print_all_angle_of_pieces(Piece **all_pieces, int num) {
 
@@ -102,7 +447,7 @@ void Frame::fill(Piece **all_pieces){
 		cout << "Vertice " << index << " with angle " << angles[index] << " : " << endl;
 		Piece *comfort_piece = NULL;
 
-		if (abs(angles[index]  - 90) <= EPSILON) {
+		if (abs(angles[index]  - 90) <= EPSILON || abs(angles[index] - 45) <= EPSILON) {
 			index ++;
 			continue;
 		}
@@ -130,8 +475,6 @@ void Frame::fill(Piece **all_pieces){
 				if (tmp < 0) cout << " Cannot fix coord piece " << endl;
 				else cout << "Fix coord piece .. Done!" << endl;
 
-				cout << *comfort_piece;
-				comfort_piece->print_new_coord();
 				(this->result_pieces).push_back(comfort_piece);
 				this->get_new_frame(comfort_piece, index_piece, index);
 				delete[] this->angles;
@@ -139,8 +482,6 @@ void Frame::fill(Piece **all_pieces){
 				comfort_piece->filled = true;
 				this->calculateAngle();
 				index = 0;
-				cin.ignore().get();
-
 				continue;
 			}
 
@@ -151,9 +492,12 @@ void Frame::fill(Piece **all_pieces){
 
 
 		index++;
-		cin.ignore().get();
+		//cin.ignore().get();
 	}
+
+	draw_result();
 }
+
 
 void Frame::get_new_frame(Piece *piece, int index_piece, int index_frame) {
 

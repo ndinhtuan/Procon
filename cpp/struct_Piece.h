@@ -14,9 +14,12 @@ struct Piece : public Puzzle {
 		filled = false;
 	}
 
+	Piece(const Piece &piece);
+
 	// Dua vao su thay doi (new_x, new_y) cua 3 dinh ta tim dc su thay doi cua tat ca cac dinh con lai cua piece
 	int fix_coord_piece(int index);
 	void print_new_coord();
+	void print_angles();
 
 	// find new D known new A, B, C
 	static int find_new_coord_dot(Dot *dot_D, Dot *dot_A, Dot *dot_B, Dot *dot_C);
@@ -28,6 +31,36 @@ struct Piece : public Puzzle {
 	bool flipped;
 	bool filled;
 };
+
+void Piece::print_angles() {
+
+	cout << this->num_of_vertices << " vertices : " << endl;
+	for (int i = 0; i < this->num_of_vertices; i++) {
+
+		cout << this->angles[i] << endl;
+	}
+}
+
+Piece::Piece(const Piece &piece) {
+
+	num_of_vertices = piece.num_of_vertices;
+	vertices = new Dot*[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		vertices[i] = new Dot(piece.vertices[i]->x, piece.vertices[i]->y);
+	}
+
+	angles = new double[num_of_vertices];
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		angles[i] = piece.angles[i];
+	}
+
+	flipped = piece.flipped;
+	filled = piece.filled;
+}
 
 void Piece::print_new_coord() {
 
