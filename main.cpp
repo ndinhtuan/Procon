@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 
 	cout << "Parsing ..." << endl;
 	int num_pieces;
-	parse_input("input2.txt", pieces, frame, num_pieces);
+	parse_input("input1.txt", pieces, frame, num_pieces);
 	frame->calculateAngle();
 	frame->set_num_of_pieces(num_pieces);
 

@@ -22,6 +22,18 @@ using std::vector;
 
 using namespace cv;
 
+#include <fstream>
+
+using std::ifstream;
+
+#include <sstream>
+#include <cstdlib>
+#include <cstdio>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+
 #define EPSILON 1e-2
 
 struct Frame : Puzzle {
@@ -46,7 +58,7 @@ struct Frame : Puzzle {
 	bool is_comfort_piece(Piece *piece, int index_frame);
 
 	// --------------- Fill_custom_at_one_vertice-----------------
-	void fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame);
+	int fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame);
 	void get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &ill, int width = 30, int height = 30, int step = 30);
 	//----------------END--------------------------
 
@@ -86,10 +98,48 @@ struct Frame : Puzzle {
 	static void print_all_angle_of_pieces(Piece **all_pieces, int num);
 	static void draw_piece(Piece *piece, int width = 30, int height = 30, int step = 30);
 	void draw_frame(int width = 30, int height = 30, int step = 30);
+	void save_frame_and_piece(string file_name, Piece **all_pieces);
+	bool is_flip_and_not_flip_comfort(Piece *piece, int index_piece, int index_frame);
+	bool has_angle_smaller_90();
 
 	vector<Piece*> result_pieces;
 	int num_of_pieces;
 };
+
+void Frame::save_frame_and_piece(string file_name, Piece **all_pieces) {
+
+	ofstream out;
+	out.open(file_name.c_str());
+
+	int num_piece_left = 0;
+
+	for (int i = 0; i < num_of_pieces; i++) {
+
+		if (!all_pieces[i]->filled) num_piece_left++;
+	}
+
+	out << num_piece_left << endl;
+	for (int i = 0; i < num_of_pieces; i++) {
+
+		if (!all_pieces[i]->filled) {
+
+				out << all_pieces[i]->num_of_vertices << " ";
+				for (int j = 0; j < all_pieces[i]->num_of_vertices; j++) {
+
+						out << all_pieces[i]->vertices[j]->x << " " << all_pieces[i]->vertices[j]->y << " ";
+				}
+				out << endl;
+		}
+
+	}
+
+	out << this->num_of_vertices << " ";
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		out << vertices[i]->x << " " << vertices[i]->y << " ";
+	}
+	out << endl;
+}
 
 void Frame::draw_frame(int width, int height, int step) {
 
@@ -169,16 +219,29 @@ bool Frame::is_comfort_piece(Piece *piece, int index_frame) {
 	return false;
 }
 
+bool Frame::has_angle_smaller_90() {
+
+	for (int i = 0; i < num_of_vertices; i++) {
+
+		if (abs(angles[i] - 90) > EPSILON) return true;
+	}
+
+	return false;
+}
+
 void Frame::fill_half_auto(Piece **all_pieces) {
 
 	int index = 0;
 
 	while (index < this->num_of_vertices) {
 
-		// if (abs(angles[index] - 90) <= EPSILON) {
-		// 	index ++;
-		// 	continue;
-		// }
+		if (has_angle_smaller_90()) {
+
+			if (abs(angles[index] - 90) <= EPSILON) {
+				index ++;
+				continue;
+			}
+		}
 		vector<Piece*> array_comfort_pieces;
 
 		for (int i = 0; i < this->num_of_pieces; i++) {
@@ -189,7 +252,8 @@ void Frame::fill_half_auto(Piece **all_pieces) {
 		}
 
 		int index_piece;
-		if (array_comfort_pieces.size() == 1 && get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) == 1) {
+		if (array_comfort_pieces.size() == 1 && get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) == 1
+				&& !is_flip_and_not_flip_comfort(array_comfort_pieces[0], index_piece, index)) {
 
 			cout << "fill auto at vertice " << index << " - " << this->angles[index] << endl;
 			fill_auto_at_one_vertice(array_comfort_pieces[0], index_piece, index);
@@ -197,12 +261,15 @@ void Frame::fill_half_auto(Piece **all_pieces) {
 			continue;
 		}
 		if (array_comfort_pieces.size() > 1 ||
-				(array_comfort_pieces.size() == 1 && get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) > 1)) {
+				(array_comfort_pieces.size() == 1 && (get_num_same_angles_in_piece(array_comfort_pieces[0], index, index_piece) > 1
+																							|| is_flip_and_not_flip_comfort(array_comfort_pieces[0], index_piece, index)) )) {
 
 			cout << "fill custom at vertice " << index << " - " << this->angles[index] << endl;
-			fill_custom_at_vertice(array_comfort_pieces, index);
-			index = 0;
-			continue;
+			int h = fill_custom_at_vertice(array_comfort_pieces, index);
+			if (h > 0) {
+				index = 0;
+				continue;
+			}
 		}
 
 		cout << "Not fill at vertice " << index << " - " << this->angles[index] << endl;
@@ -220,10 +287,16 @@ void Frame::get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &
 	//cout << index_piece << " of " <<*piece;
 	//draw_frame();
 	//draw_piece(piece);
+	cout << "index_piece " << index_piece << endl;
+	if (index_piece == 100) index_piece = 0;
+	index_piece = abs(index_piece);
 	assert(choosed_position);
 
 	int fixed_coord_piece = piece->fix_coord_piece(index_piece);
-	assert(fixed_coord_piece >= 0);
+	if (fixed_coord_piece < 0) {
+		ill = Mat(height * step, width * step, CV_8UC3, Scalar(255, 255, 255));
+		return;
+	}
 
 	(this->result_pieces).push_back(piece);
 
@@ -259,9 +332,31 @@ void Frame::get_illustrate(Piece *piece, int index_piece, int index_frame, Mat &
 	(this->result_pieces).pop_back();
 }
 
-void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame) {
+bool Frame::is_flip_and_not_flip_comfort(Piece *piece, int index_piece, int index_frame) {
 
-	assert(all_comfort_pieces.size() >= 2);
+	if (abs(piece->angles[index_piece] - this->angles[index_frame]) >= EPSILON) return false;
+
+	int index_piece_next = (index_piece + 1) % piece->num_of_vertices;
+	int index_piece_prev = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
+
+	int index_frame_next = (index_frame + 1) % this->num_of_vertices;
+	int index_frame_prev = (index_frame -1 + this->num_of_vertices) % this->num_of_vertices;
+
+	Dot *dot_piece = piece->vertices[index_piece];
+	Dot *dot_piece_next = piece->vertices[index_piece_next];
+	Dot *dot_piece_prev = piece->vertices[index_piece_prev];
+
+	Dot *dot_frame = this->vertices[index_frame];
+	Dot *dot_frame_next = this->vertices[index_frame_next];
+	Dot *dot_frame_prev = this->vertices[index_frame_prev];
+
+	return (is_comfort_3_dot(dot_piece, dot_piece_next, dot_piece_prev, dot_frame, dot_frame_next, dot_frame_prev)
+					&& is_comfort_3_dot(dot_piece, dot_piece_prev, dot_piece_next, dot_frame, dot_frame_next, dot_frame_prev));
+}
+
+int Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_frame) {
+
+	//assert(all_comfort_pieces.size() >= 2);
 	vector< vector<int> > array_indexes;
 
 	for (int i = 0; i < all_comfort_pieces.size(); i++) {
@@ -270,7 +365,16 @@ void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_
 
 			for (int j = 0; j < all_comfort_pieces[i]->num_of_vertices; j++) {
 
-				if (is_comfort_piece_at_vertice(all_comfort_pieces[i], j, index_frame)) indexes.push_back(j);
+				if (is_comfort_piece_at_vertice(all_comfort_pieces[i], j, index_frame)) {
+
+					indexes.push_back(j);
+					if (is_flip_and_not_flip_comfort(all_comfort_pieces[i], j, index_frame)) {
+
+						if (j != 0) indexes.push_back(-j);
+						else indexes.push_back(100);
+					}
+
+				}
 			}
 
 			array_indexes.push_back(indexes);
@@ -300,9 +404,15 @@ void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_
 			for (int j = 0; j < array_illustrates[i].size(); j++) {
 
 				string st = "illustrate for piece ";
-				st += char(i + '0');
+				std::stringstream ss;
+				ss<<i;
+				std::string s = ss.str();
+				st += s;
 				st += " at vertice ";
-				st += char(array_indexes[i][j] + '0');
+				std::stringstream ss1;
+				ss1<<array_indexes[i][j];
+				std::string s1 = ss1.str();
+				st += s1;
 				imshow(st, array_illustrates[i][j]);
 			}
 	}
@@ -314,7 +424,9 @@ void Frame::fill_custom_at_vertice(vector<Piece*> all_comfort_pieces, int index_
 
 	//cout << *all_comfort_pieces[number_piece] << endl;
 	//cout << "and " << *all_comfort_pieces[number_piece]->vertices[array_indexes[number_piece][number_index]] << endl;
+	if (number_piece < 0) return -1;
 	fill_auto_at_one_vertice(all_comfort_pieces[number_piece], number_index, index_frame);
+	return 1;
 }
 //----------------END--------------------------
 
@@ -380,12 +492,12 @@ Frame& Frame::operator=(const Frame &frame) {
 // --------------- Fill_auto_at_one_vertice-----------------
 void Frame::fill_auto_at_one_vertice(Piece *&comfort_piece, int index_piece, int index_frame) {
 
-	assert(is_comfort_piece_at_vertice(comfort_piece, index_piece, index_frame));
+	assert(is_comfort_piece_at_vertice(comfort_piece, abs(index_piece), index_frame));
 
 	bool choosed_position = choose_position_for_piece(comfort_piece, index_piece, index_frame);
 	assert(choosed_position);
-
-	int fixed_coord_piece = comfort_piece->fix_coord_piece(index_piece);
+	if (comfort_piece->flipped) cout << "FLIPPP" << endl;
+	int fixed_coord_piece = comfort_piece->fix_coord_piece(abs(index_piece));
 	assert(fixed_coord_piece >= 0);
 
 	(this->result_pieces).push_back(comfort_piece);
@@ -400,6 +512,8 @@ void Frame::fill_auto_at_one_vertice(Piece *&comfort_piece, int index_piece, int
 }
 
 bool Frame::is_comfort_piece_at_vertice(Piece *piece, int index_piece, int index_frame) {
+
+	if (index_piece == 100) index_piece = 0;
 
 	if (abs(piece->angles[index_piece] - this->angles[index_frame]) >= EPSILON) return false;
 
@@ -791,6 +905,19 @@ int Frame::fit_3_dot(Dot *vertice_piece, Dot *vertice_piece_next, Dot *vertice_p
 }
 
 bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_frame) {
+	bool sure_flipped = false;
+
+	if (index_piece < 0) {
+
+		sure_flipped = true;
+		index_piece = -index_piece;
+	}
+
+	if (index_piece == 100) {
+
+		sure_flipped = true;
+		index_piece = 0;
+	}
 
 	int index_piece_next = (index_piece + 1) % piece->num_of_vertices;
 	int index_piece_prev = (index_piece - 1 + piece->num_of_vertices) % piece->num_of_vertices;
@@ -830,9 +957,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		//dot_n2->print_new_coord();
   }
 
-	int pri = 1;
-
-	if (val1 > 100 || (val2 < 0 && val1 > 0) || ((val2 > 0 && val1 > 0)&& pri == 1) ) {
+	if ((val1 > 100 || (!is_flip_and_not_flip_comfort(piece, index_piece, index_frame) && val1 > 0)) && !sure_flipped){
 
 		vertice_piece_next->new_x = dot_n1->new_x;
 		vertice_piece_next->new_y = dot_n1->new_y;
@@ -843,7 +968,7 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		return true;
 	}
 
-	if (val2 > 100 || (val1 < 0 && val2 > 0) && pri == 2) {
+	if (val2 > 100 || (val2 > 0 && val1 < 0) || sure_flipped) {
 
 		piece->flipped = true; // piece bi flip
 
@@ -855,6 +980,16 @@ bool Frame::choose_position_for_piece(Piece *piece, int index_piece, int index_f
 		return true;
 	}
 
+	if (val1 > 0 && val2 > 0) {
+
+		vertice_piece_next->new_x = dot_n1->new_x;
+		vertice_piece_next->new_y = dot_n1->new_y;
+
+		vertice_piece_prev->new_x = dot_p1->new_x;
+		vertice_piece_prev->new_y = dot_p1->new_y;
+
+		return true;
+	}
 
 	return false;
 }
